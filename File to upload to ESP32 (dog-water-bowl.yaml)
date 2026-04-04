@@ -1,0 +1,205 @@
+esphome:
+  name: dog-water-bowl
+  friendly_name: Dog Water Bowl
+  area: Kitchen
+
+# --- CHIP CONFIGURATION ---
+# Target Chip: Seeed Studio XIAO ESP32-C6
+# Note: esp-idf is required for C6 networking and power management.
+esp32:
+  board: esp32-c6-devkitc-1
+  framework:
+    type: esp-idf
+
+# --- NETWORK ---
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  power_save_mode: NONE
+  manual_ip:
+    static_ip:  #add a static IP address if you want to use WiFi. 
+    gateway: #your gateway for your network.
+    subnet: 255.255.255.0
+  on_connect:
+    then:
+      - light.turn_on: green_led
+
+api:
+  encryption:
+    key: ""   #your key here
+
+ota:
+  - platform: esphome
+    password: ""   #your stuff here
+
+logger:
+  level: DEBUG
+
+# --- OUTPUTS ---
+# Physical Hole to GPIO Mapping for XIAO C6:
+# D1=GPIO1, D2=GPIO2, D3=GPIO21, D4=GPIO22, D5=GPIO23
+output:
+  - platform: gpio
+    pin: GPIO2   # D2 (Blue)
+    id: blue_out
+  - platform: gpio
+    pin: GPIO21  # D3 (Red)
+    id: red_out
+  - platform: gpio
+    pin: GPIO22  # D4 (Green)
+    id: green_out
+  - platform: gpio
+    pin: GPIO23  # D5 (Yellow)
+    id: yellow_out
+
+# --- LIGHTS ---
+light:
+  - platform: binary
+    name: "Blue LED"
+    id: blue_led
+    output: blue_out
+  - platform: binary
+    name: "Red LED"
+    id: red_led
+    output: red_out
+  - platform: binary
+    name: "Yellow LED"
+    id: yellow_led_light
+    output: yellow_out
+  - platform: binary
+    name: "Green Status LED"
+    id: green_led
+    output: green_out
+
+# --- AUTOMATION ENTITY ---
+binary_sensor:
+  - platform: template
+    name: "Dog Bowl Needs Refill"
+    id: refill_alarm
+    device_class: problem
+
+# --- TOGGLES ---
+switch:
+  - platform: template
+    name: "Manual LED Override"
+    id: manual_mode
+    optimistic: true
+
+  - platform: template
+    name: "WiFi Status LED Switch"  # Changed name to avoid confusion with the LED itself
+    id: status_led_enable
+    optimistic: true
+    restore_mode: ALWAYS_ON
+    on_turn_off:
+      then:
+        - light.turn_off: green_led
+
+# --- CALIBRATION ---
+number:
+  - platform: template
+    name: "Calibrate: Empty Bowl"
+    id: empty_val
+    mode: box
+    step: 0.001
+    min_value: 0
+    max_value: 4095
+    optimistic: true
+    restore_value: true
+
+  - platform: template
+    name: "Calibrate: Blue LED" # Renamed as requested
+    id: full_val
+    mode: box
+    step: 0.001
+    min_value: 0
+    max_value: 4095
+    optimistic: true
+    restore_value: true
+
+  - platform: template
+    name: "Report Interval"
+    id: report_freq
+    mode: box
+    unit_of_measurement: "s"
+    step: 0.1
+    min_value: 0.1
+    max_value: 60
+    optimistic: true
+    restore_value: true
+
+# --- SENSORS ---
+sensor:
+  - platform: adc
+    pin: GPIO1 # D1 (Force Sensitive Resistor)
+    id: raw_adc
+    update_interval: 200ms
+    attenuation: 12db
+    on_value:
+      then:
+        - script.execute: update_led_logic
+        - lambda: |-
+            static uint32_t last_millis = 0;
+            uint32_t now = millis();
+            if (now - last_millis >= (id(report_freq).state * 1000)) {
+              
+              // AUTO-RECOVERY: If the switch is ON but LED was manually turned off, turn it back ON
+              if (id(status_led_enable).state && !id(green_led).remote_values.is_on()) {
+                auto call = id(green_led).turn_on();
+                call.perform();
+              }
+
+              float raw_bits = id(raw_adc).get_raw_state(); 
+              float low = id(empty_val).state;
+              float high = id(full_val).state;
+              
+              float pct = ((raw_bits - low) / (high - low)) * 100.0;
+              id(water_pct_ha).publish_state(clamp(pct, 0.0f, 100.0f));
+              id(raw_val_ha).publish_state(raw_bits);
+              
+              id(refill_alarm).publish_state(raw_bits < low);
+              
+              last_millis = now;
+            }
+
+  - platform: template
+    name: "Water Percentage"
+    id: water_pct_ha
+    unit_of_measurement: "%"
+    # NOTE: This percentage is relative to the thresholds. 
+    # It shows how close the bowl is to triggering the next LED state (e.g., Yellow to Red), 
+    # rather than a precise volumetric measurement of the water.
+
+  - platform: template
+    name: "Raw Weight Value"
+    id: raw_val_ha
+
+# --- THE WEIGHT BRAIN ---
+script:
+  - id: update_led_logic
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return !id(manual_mode).state;'
+          then:
+            - lambda: |-
+                float raw_bits = id(raw_adc).get_raw_state();
+                float empty = id(empty_val).state;
+                float full = id(full_val).state;
+
+                if (raw_bits > full) {
+                  // HEAVY = BLUE
+                  id(blue_led).turn_on().perform();
+                  id(yellow_led_light).turn_off().perform();
+                  id(red_led).turn_off().perform();
+                } else if (raw_bits < empty) {
+                  // LIGHT = RED
+                  id(blue_led).turn_off().perform();
+                  id(yellow_led_light).turn_off().perform();
+                  id(red_led).turn_on().perform();
+                } else {
+                  // MIDDLE = YELLOW
+                  id(blue_led).turn_off().perform();
+                  id(yellow_led_light).turn_on().perform();
+                  id(red_led).turn_off().perform();
+                }
