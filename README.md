@@ -1,4 +1,12 @@
 # Orphaned-Dog-Water-Bowl-Home-Assistant
+
+So it is important to note I'm leaving this project up because someone out there might be able to get this to work. Also I'm sure some can get some use of the MP3 files. 
+In short, I couldn't get the weight to work. I'm pretty sure I use the wrong type of sensors, but because I have a hard time with physically making things like this due to being born with fine motor skill issues and other issues. I think it is best to know my limit.
+
+If I didn't have this physical issue, then my next push would be load sensors. 
+
+
+# now to the normal
 Making a dog water bowl alert system which connects to home assistant 
 This is project is practical, uses affordable hardware, and solves a real problem. Here is a clean, professional README draft tailored to your specific setup.
 I made this because after searching for a week or so for solutions that just work that I can just buy. I couldn't find anything. And this should make it where the human being stupid doesn't cause the dog to be thursty.
@@ -55,10 +63,20 @@ Also note I made it where you should be able to calibrate it in real time. This 
 
 ---
 
+# Automation
 
-Note I will upload later the automation for this. 
+
+I was going to use 2 helpers. A 15 minute timer and a toggle.
+
+Basically if the bowl goes eympty for 5 minutes it flips the toggle on and alerts us. It starts a timer and when it is done if the toggle is still on then alert us again. If you add water and enough weight is applied to push it outside of eympty then it toggles off the thing.
 
 
-Right now for mine I use 2 helpers. A 15 minute timer and a toggle.
+Note I provided 2 MP3 files. Feel free to use them however you see fit. 
 
-Basically if the bowl goes eympty for 5 minutes it flips the toggle on and alerts us. It starts a timer and when it is done if the toggle is still on then alert us again. If you add water and enough weight is applied to push it outside of eympty then it toggles off the thing. 
+
+---
+
+
+# Legal
+
+If anyone wants  to profit off of this then great. Like it would honestly be nice to have something that works and someone like me (disabled) can just buy and not have to bend over backwards for. I don't mind writing code. But there is a few things that reminded me to an extreme of my motor skill issue. And this 100% was one of the few ones that did. 
