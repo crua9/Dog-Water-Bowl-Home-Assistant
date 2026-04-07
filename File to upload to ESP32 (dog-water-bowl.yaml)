@@ -3,73 +3,71 @@ esphome:
   friendly_name: Dog Water Bowl
   area: Kitchen
 
-# --- CHIP CONFIGURATION ---
-# Target Chip: Seeed Studio XIAO ESP32-C6
-# Note: esp-idf is required for C6 networking and power management.
 esp32:
   board: esp32-c6-devkitc-1
   framework:
     type: esp-idf
 
-# --- NETWORK ---
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
   power_save_mode: NONE
   manual_ip:
-    static_ip:  #add a static IP address if you want to use WiFi. 
-    gateway: #your gateway for your network.
-    subnet: 255.255.255.0
+    static_ip: 
+    gateway: 
+    subnet: 
   on_connect:
     then:
-      - light.turn_on: green_led
+      - script.execute: update_green_led
 
 api:
   encryption:
-    key: ""   #your key here
+    key: ""
 
 ota:
   - platform: esphome
-    password: ""   #your stuff here
+    password: ""
 
 logger:
   level: DEBUG
 
-# --- OUTPUTS ---
-# Physical Hole to GPIO Mapping for XIAO C6:
-# D1=GPIO1, D2=GPIO2, D3=GPIO21, D4=GPIO22, D5=GPIO23
+# --- OUTPUTS (PWM for Dimming) ---
 output:
-  - platform: gpio
+  - platform: ledc
     pin: GPIO2   # D2 (Blue)
     id: blue_out
-  - platform: gpio
+  - platform: ledc
     pin: GPIO21  # D3 (Red)
     id: red_out
-  - platform: gpio
+  - platform: ledc
     pin: GPIO22  # D4 (Green)
     id: green_out
-  - platform: gpio
+  - platform: ledc
     pin: GPIO23  # D5 (Yellow)
     id: yellow_out
 
-# --- LIGHTS ---
+# --- LIGHTS (Monochromatic for Dimming) ---
 light:
-  - platform: binary
+  - platform: monochromatic
     name: "Blue LED"
     id: blue_led
     output: blue_out
-  - platform: binary
+    restore_mode: ALWAYS_OFF
+  - platform: monochromatic
     name: "Red LED"
     id: red_led
     output: red_out
-  - platform: binary
+    restore_mode: ALWAYS_OFF
+  - platform: monochromatic
     name: "Yellow LED"
     id: yellow_led_light
     output: yellow_out
-  - platform: binary
+    restore_mode: ALWAYS_OFF
+  - platform: monochromatic
     name: "Green Status LED"
     id: green_led
     output: green_out
+    restore_mode: ALWAYS_OFF
 
 # --- AUTOMATION ENTITY ---
 binary_sensor:
@@ -86,15 +84,20 @@ switch:
     optimistic: true
 
   - platform: template
-    name: "WiFi Status LED Switch"  # Changed name to avoid confusion with the LED itself
+    name: "WiFi Status LED Switch"
     id: status_led_enable
     optimistic: true
     restore_mode: ALWAYS_ON
+    on_turn_on:
+      then:
+        - script.execute: update_green_led
     on_turn_off:
       then:
-        - light.turn_off: green_led
+        - light.turn_off: 
+            id: green_led
+            transition_length: !lambda "return id(fade_time).state * 1000;"
 
-# --- CALIBRATION ---
+# --- CALIBRATION & ADJUSTMENTS ---
 number:
   - platform: template
     name: "Calibrate: Empty Bowl"
@@ -102,19 +105,59 @@ number:
     mode: box
     step: 0.001
     min_value: 0
-    max_value: 4095
+    max_value: 3.3
     optimistic: true
     restore_value: true
 
   - platform: template
-    name: "Calibrate: Blue LED" # Renamed as requested
+    name: "Calibrate: Blue LED"
     id: full_val
     mode: box
     step: 0.001
     min_value: 0
-    max_value: 4095
+    max_value: 3.3
     optimistic: true
     restore_value: true
+
+  - platform: template
+    name: "Stability Buffer"
+    id: buffer_val
+    mode: box
+    unit_of_measurement: "V"
+    step: 0.001
+    min_value: 0
+    max_value: 1.0
+    optimistic: true
+    restore_value: true
+    initial_value: 0.050
+
+  - platform: template
+    name: "LED Brightness"
+    id: led_bright
+    mode: box
+    unit_of_measurement: "%"
+    step: 1
+    min_value: 0
+    max_value: 100
+    optimistic: true
+    restore_value: true
+    initial_value: 50
+    on_value:
+      then:
+        - script.execute: update_led_logic
+        - script.execute: update_green_led
+
+  - platform: template
+    name: "LED Fade Time"
+    id: fade_time
+    mode: box
+    unit_of_measurement: "s"
+    step: 0.1
+    min_value: 0
+    max_value: 10
+    optimistic: true
+    restore_value: true
+    initial_value: 1.0
 
   - platform: template
     name: "Report Interval"
@@ -130,33 +173,37 @@ number:
 # --- SENSORS ---
 sensor:
   - platform: adc
-    pin: GPIO1 # D1 (Force Sensitive Resistor)
+    pin: GPIO1 
     id: raw_adc
     update_interval: 200ms
     attenuation: 12db
+    filters:
+      - median:
+          window_size: 30
+          send_every: 1
+      - sliding_window_moving_average:
+          window_size: 15
+          send_every: 1
     on_value:
       then:
-        - script.execute: update_led_logic
         - lambda: |-
             static uint32_t last_millis = 0;
             uint32_t now = millis();
             if (now - last_millis >= (id(report_freq).state * 1000)) {
               
-              // AUTO-RECOVERY: If the switch is ON but LED was manually turned off, turn it back ON
-              if (id(status_led_enable).state && !id(green_led).remote_values.is_on()) {
-                auto call = id(green_led).turn_on();
-                call.perform();
-              }
+              // Ensure Green LED stays synced with brightness/status
+              id(update_green_led).execute();
 
-              float raw_bits = id(raw_adc).get_raw_state(); 
+              float raw_v = id(raw_adc).state; 
               float low = id(empty_val).state;
               float high = id(full_val).state;
               
-              float pct = ((raw_bits - low) / (high - low)) * 100.0;
+              float pct = ((raw_v - low) / (high - low)) * 100.0;
               id(water_pct_ha).publish_state(clamp(pct, 0.0f, 100.0f));
-              id(raw_val_ha).publish_state(raw_bits);
+              id(raw_val_ha).publish_state(raw_v);
+              id(refill_alarm).publish_state(raw_v < low);
               
-              id(refill_alarm).publish_state(raw_bits < low);
+              id(update_led_logic).execute();
               
               last_millis = now;
             }
@@ -165,9 +212,6 @@ sensor:
     name: "Water Percentage"
     id: water_pct_ha
     unit_of_measurement: "%"
-    # NOTE: This percentage is relative to the thresholds. 
-    # It shows how close the bowl is to triggering the next LED state (e.g., Yellow to Red), 
-    # rather than a precise volumetric measurement of the water.
 
   - platform: template
     name: "Raw Weight Value"
@@ -175,6 +219,21 @@ sensor:
 
 # --- THE WEIGHT BRAIN ---
 script:
+  - id: update_green_led
+    then:
+      - if:
+          condition:
+            lambda: 'return id(status_led_enable).state;'
+          then:
+            - light.turn_on:
+                id: green_led
+                brightness: !lambda "return id(led_bright).state / 100.0;"
+                transition_length: !lambda "return id(fade_time).state * 1000;"
+          else:
+            - light.turn_off:
+                id: green_led
+                transition_length: !lambda "return id(fade_time).state * 1000;"
+
   - id: update_led_logic
     mode: restart
     then:
@@ -183,23 +242,37 @@ script:
             lambda: 'return !id(manual_mode).state;'
           then:
             - lambda: |-
-                float raw_bits = id(raw_adc).get_raw_state();
+                float raw = id(raw_adc).state;
                 float empty = id(empty_val).state;
                 float full = id(full_val).state;
+                float buffer = id(buffer_val).state;
+                float b_level = id(led_bright).state / 100.0;
+                float f_ms = id(fade_time).state * 1000.0;
 
-                if (raw_bits > full) {
-                  // HEAVY = BLUE
-                  id(blue_led).turn_on().perform();
-                  id(yellow_led_light).turn_off().perform();
-                  id(red_led).turn_off().perform();
-                } else if (raw_bits < empty) {
-                  // LIGHT = RED
-                  id(blue_led).turn_off().perform();
-                  id(yellow_led_light).turn_off().perform();
-                  id(red_led).turn_on().perform();
-                } else {
-                  // MIDDLE = YELLOW
-                  id(blue_led).turn_off().perform();
-                  id(yellow_led_light).turn_on().perform();
-                  id(red_led).turn_off().perform();
+                bool is_blue = id(blue_led).remote_values.is_on();
+                bool is_red = id(red_led).remote_values.is_on();
+
+                if (raw > (is_blue ? full : full + buffer)) {
+                  auto call = id(blue_led).turn_on();
+                  call.set_brightness(b_level);
+                  call.set_transition_length(f_ms);
+                  call.perform();
+                  id(yellow_led_light).turn_off().set_transition_length(f_ms).perform();
+                  id(red_led).turn_off().set_transition_length(f_ms).perform();
+                } 
+                else if (raw < (is_red ? empty + buffer : empty)) {
+                  id(blue_led).turn_off().set_transition_length(f_ms).perform();
+                  id(yellow_led_light).turn_off().set_transition_length(f_ms).perform();
+                  auto call = id(red_led).turn_on();
+                  call.set_brightness(b_level);
+                  call.set_transition_length(f_ms);
+                  call.perform();
+                } 
+                else {
+                  id(blue_led).turn_off().set_transition_length(f_ms).perform();
+                  auto call = id(yellow_led_light).turn_on();
+                  call.set_brightness(b_level);
+                  call.set_transition_length(f_ms);
+                  call.perform();
+                  id(red_led).turn_off().set_transition_length(f_ms).perform();
                 }
