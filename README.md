@@ -1,4 +1,4 @@
-# Dog-Water-Bowl-Home-Assistant
+# Orphaned-Dog-Water-Bowl-Home-Assistant
 Making a dog water bowl alert system which connects to home assistant 
 This is project is practical, uses affordable hardware, and solves a real problem. Here is a clean, professional README draft tailored to your specific setup.
 I made this because after searching for a week or so for solutions that just work that I can just buy. I couldn't find anything. And this should make it where the human being stupid doesn't cause the dog to be thursty.
