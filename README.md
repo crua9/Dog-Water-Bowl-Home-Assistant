@@ -1,82 +1,75 @@
-# Orphaned-Dog-Water-Bowl-Home-Assistant
+# Dog-Water-Bowl-Home-Assistant
 
-So it is important to note I'm leaving this project up because someone out there might be able to get this to work. Also I'm sure some can get some use of the MP3 files. 
-In short, I couldn't get the weight to work. I'm pretty sure I use the wrong type of sensors, but because I have a hard time with physically making things like this due to being born with fine motor skill issues and other issues. I think it is best to know my limit.
+So the FSR largely is orphaned. I couldn't get it to work but I'm leaving it up so whomever can work on it. However, the load cell version I did get to work. 
 
-If I didn't have this physical issue, then my next push would be load sensors. 
+Note I attached some MP3 files. I made them mix with some random sound I found, and AI voice. 
 
+# What is this?
 
-# now to the normal
-Making a dog water bowl alert system which connects to home assistant 
-This is project is practical, uses affordable hardware, and solves a real problem. Here is a clean, professional README draft tailored to your specific setup.
-I made this because after searching for a week or so for solutions that just work that I can just buy. I couldn't find anything. And this should make it where the human being stupid doesn't cause the dog to be thursty.
+This project was born out of a week-long search for an "off-the-shelf" solution that simply didn't exist. It ensures that human error doesn't lead to thirsty pets. By monitoring the weight of a water bowl, the system assumes a low weight equals low water and alerts the household.
 
-
-In short this uses the weight of the bowl. I highly suggest modifying this for your system. Like our dogs have a silicone pad the bowl is on. Due to this I'm not as worried about spills messing things up. 
-
----
-
-# Dog Water Level Monitor (Home Assistant Integrated)
-
-A smart water level monitor for pet bowls using a **Seeed Studio XIAO ESP32-C6** and a **Force Sensitive Resistor (FSR)**. This system provides local visual feedback via LEDs and integrates with Home Assistant for remote monitoring and persistent "nag" refill alerts.
-
-## Features
-* **Real-time Local Status:** 3-LED system (Blue/Yellow/Red) for instant water level visibility.
-* **Home Assistant Binary Sensor:** Flips to "Problem" state automatically when water hits the critical low threshold.
-* **Smart "Nag" Loop:** A Home Assistant automation that alerts you every 15 minutes until the bowl is actually refilled.
-
-## Hardware Requirements
-* **Microcontroller:** Seeed Studio XIAO ESP32-C6 or other ESP32
-* **Sensor:** Force Sensitive Resistor (FSR). This is the one I used https://www.amazon.com/dp/B0FX2754JR
-* **Visuals:** 3x 5mm LEDs (Red, Yellow, Blue)
-* **Resistors:**
-    * 1x 10k  (Pull-down for FSR)
-    * 3x 220 (Current limiting for LEDs)
-
-You will obviously need wiring, power, etc. 
+Local visual feedback is provided via a color-coded LED system, making status checks easy at a glance without opening an app.
 
 
+# Features
 
----
+* Real-time Local Status: 4-LED system (Blue for Full, Yellow for Mid, Red for Empty, Green for WiFi).
+* Rolling Error Animation: If the sensor loses signal for 3 minutes (or fails on boot), the LEDs will roll Red → Yellow → Blue to signal a hardware issue.
+* Home Assistant Integration: A binary sensor reports "Problem" states directly to your dashboard.
+* Smart "Nag" Loop: Integrates with Home Assistant automations to remind you every 15 minutes until the bowl is filled.
+* On-the-Fly Calibration: Adjust thresholds, brightness, and calibration factors via the Home Assistant UI without reflashing.
 
-## Wiring Diagram
+# Hardware Requirements
 
+* Microcontroller: Seeed Studio XIAO ESP32-C6 (or equivalent ESP32).
 
-Component,Pin on XIAO C6,Wiring Path
+* Sensor: * Primary: Geekstory 20kg Load Cell + HX711 Kit https://www.amazon.com/dp/B0B6NRW8GG (this is what I used since it has most everything you need)
+* Alternative (Experimental): Force Sensitive Resistor (FSR).
+* Visuals: 4x 5mm LEDs (Red, Yellow, Blue, Green).
 
-The sensor
-* 3.3V → FSR Leg 1 → FSR Leg 2 → D1 (GPIO 1) → 10k resistor → GND
+Resistors:
 
-The LED. Note you can get the LED pin/color by the code you upload to the ESP32. 
-* ESP Pin → LED → 200 → GND
-Note you can do the restory before or after the LED. 1 resistor per LED.
+* 4x 220Ω (Current limiting for LEDs).
+* 1x 10kΩ (Pull-down if using FSR). You don't need this if you are using the load cell. 
 
----
+# 3D Printing & Enclosure
 
-## Build Notes
-* **Soldering:** Use **lead-free rosin core solder** (SAC305 or Sn99.3) for safety, as this project lives near pet food/water.
-* **Enclosure:** I made a 3D housing. I'm sure others can do a good job on it. I will update with a link where you can get my model.
-* **Calibration:** Ensure you calibrate your "Empty" and "Full" values in your ESPHome/Arduino code to avoid the "red-blue flickering" loop.
+The housing for this project can be printed using the model linked below:
 
-Something to note with the calibration. Currently with how I have it setup, it basically looks at when it gets too low I would recommend offsetting this some. Like for example, you might want to have it say eympty when it is really at 5%. This preventing the dog from running out of water. The % the thing kicks out is more of the % you are at when you are in the yellow. Like you could do 100% for full and 0% when there is no water. But this in my opinion takes away from the usefulness of things. 
-Also note I made it where you should be able to calibrate it in real time. This allowing you to simply just use and switch out bowls as needed without reuploading the firmware. 
-
----
-
-# Automation
+https://makerworld.com/en/models/2628200-orphaned-dog-water-bowl-sensor#profileId-2901745
 
 
-I was going to use 2 helpers. A 15 minute timer and a toggle.
+# Wiring Diagram (Load Cell - Recommended)
 
-Basically if the bowl goes eympty for 5 minutes it flips the toggle on and alerts us. It starts a timer and when it is done if the toggle is still on then alert us again. If you add water and enough weight is applied to push it outside of eympty then it toggles off the thing.
+Note the exact for mine is XIAO C6. Check your chip.
 
+HX711 VCC > 3.3V
+HX711 GND > GND
+HX711 DT > GPIO18 (D4)
+HX711 SCK > GPIO19 (D5)
 
-Note I provided 2 MP3 files. Feel free to use them however you see fit. 
+Load cell to hx711
 
+Red > e+
+Black > e-
+White > a-
+Green > a+
 
----
+LED
 
+Pin > resistor > ground
+
+Red = D8
+Yellow = D10
+Blue = D2
+Green = D9
+
+# Build notes
+
+* Use lead-free rosin core solder (SAC305 or Sn99.3) as this project resides near pet water.
+* Use hot glue over the DuPont connections and the ESP32 mounting points to prevent wires from wiggling loose.
+* Set your "Empty" value slightly above true zero (e.g., at 5% capacity) to ensure your dog never actually hits a dry bowl before the alert triggers.
 
 # Legal
 
-If anyone wants  to profit off of this then great. Like it would honestly be nice to have something that works and someone like me (disabled) can just buy and not have to bend over backwards for. I don't mind writing code. But there is a few things that reminded me to an extreme of my motor skill issue. And this 100% was one of the few ones that did. 
+This project is open-source. If you can profit from making a version that helps people with disabilities or simplified lives, please do. This project was designed to overcome motor skill challenges, memory issues, and provide a reliable, automated safety net for pets.
