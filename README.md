@@ -75,3 +75,7 @@ Green = D9
 # Legal
 
 This project is open-source. If you can profit from making a version that helps people with disabilities or simplified lives, please do. This project was designed to overcome motor skill challenges, memory issues, and provide a reliable, automated safety net for pets.
+
+
+<img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/b4c6c304-ea4c-4313-a3ec-f5131ae6cc75" />
+
