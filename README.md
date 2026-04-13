@@ -19,6 +19,8 @@ Local visual feedback is provided via a color-coded LED system, making status ch
 * Smart "Nag" Loop: Integrates with Home Assistant automations to remind you every 15 minutes until the bowl is filled.
 * On-the-Fly Calibration: Adjust thresholds, brightness, and calibration factors via the Home Assistant UI without reflashing.
 
+Note: The automation basically waits for the bowl to be below a point after 5 minutes. I did this because if someone is cleaning the bowl or maybe a dog is drinking and it hasn't crossed that line. I don't want it to start nagging. But if no one fills it (at least get it in the yellow (between red and blue). Then every 15 min after it will nag. 
+
 # Hardware Requirements
 
 * Microcontroller: Seeed Studio XIAO ESP32-C6 (or equivalent ESP32).
