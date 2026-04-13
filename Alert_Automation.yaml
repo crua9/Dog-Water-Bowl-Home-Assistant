@@ -1,0 +1,284 @@
+# note this requires you to change the notification bit, but also it requires the MP3 I provided or some you have. 
+# All that happens with this is if the bowl is below a point for 5 min then trigger the first alert. 
+# if it's in the day time then audio alerts too. If 15 min go by it will then alert again, audio wise if day time. Then repeat until filled.
+
+alias: Dog Water Alert
+description: "This should alert us if the dog water is low. "
+triggers:
+  - trigger: state
+    entity_id:
+      - binary_sensor.dog_water_bowl_dog_bowl_needs_refill
+    to:
+      - "on"
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+    id: Need_Refill
+  - trigger: state
+    entity_id:
+      - binary_sensor.dog_water_bowl_dog_bowl_needs_refill
+    id: OK
+    to:
+      - "off"
+  - alias: 15m Timer Finished
+    event_type: timer.finished
+    event_data:
+      entity_id: timer.dog_water
+    id: timer_done
+    trigger: event
+conditions: []
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id:
+              - Need_Refill
+        sequence:
+          - action: timer.start
+            metadata: {}
+            target:
+              entity_id: timer.dog_water
+            data:
+              duration:
+                hours: 0
+                minutes: 15
+                seconds: 0
+          - action: input_boolean.turn_on
+            metadata: {}
+            target:
+              entity_id: input_boolean.dog_water
+            data: {}
+          - choose:
+              - conditions:
+                  - condition: time
+                    after: "06:00:00"
+                    before: "22:00:00"
+                sequence:
+                  - parallel:
+                      - action: media_player.play_media
+                        metadata: {}
+                        target:
+                          entity_id:
+                            - media_player.my_bedroom_mini
+                        data:
+                          media:
+                            media_content_id: >-
+                              media-source://media_source/mp3/dogs_need_water.mp3
+                            media_content_type: audio/mpeg
+                            metadata:
+                              title: dogs_need_water.mp3
+                              thumbnail: null
+                              media_class: music
+                              children_media_class: null
+                              navigateIds:
+                                - {}
+                                - media_content_type: app
+                                  media_content_id: media-source://media_source
+                                - media_content_type: ""
+                                  media_content_id: media-source://media_source/mp3/.
+                              browse_entity_id: media_player.kitchen_tablet
+                        continue_on_error: true
+                      - action: media_player.play_media
+                        metadata: {}
+                        target:
+                          entity_id:
+                            - media_player.kitchen_display
+                        data:
+                          media:
+                            media_content_id: >-
+                              media-source://media_source/mp3/dogs_need_water.mp3
+                            media_content_type: audio/mpeg
+                            metadata:
+                              title: dogs_need_water.mp3
+                              thumbnail: null
+                              media_class: music
+                              children_media_class: null
+                              navigateIds:
+                                - {}
+                                - media_content_type: app
+                                  media_content_id: media-source://media_source
+                                - media_content_type: ""
+                                  media_content_id: media-source://media_source/mp3/.
+                              browse_entity_id: media_player.kitchen_tablet
+                        continue_on_error: true
+                      - action: media_player.play_media
+                        metadata: {}
+                        target:
+                          entity_id:
+                            - media_player.kitchen_tablet
+                        data:
+                          media:
+                            media_content_id: >-
+                              media-source://media_source/mp3/dogs_need_water.mp3
+                            media_content_type: audio/mpeg
+                            metadata:
+                              title: dogs_need_water.mp3
+                              thumbnail: null
+                              media_class: music
+                              children_media_class: null
+                              navigateIds:
+                                - {}
+                                - media_content_type: app
+                                  media_content_id: media-source://media_source
+                                - media_content_type: ""
+                                  media_content_id: media-source://media_source/mp3/.
+                              browse_entity_id: media_player.kitchen_tablet
+                        continue_on_error: true
+                      - action: media_player.play_media
+                        metadata: {}
+                        target:
+                          entity_id:
+                            - media_player.game_room_speaker
+                        data:
+                          media:
+                            media_content_id: >-
+                              media-source://media_source/mp3/dogs_need_water.mp3
+                            media_content_type: audio/mpeg
+                            metadata:
+                              title: dogs_need_water.mp3
+                              thumbnail: null
+                              media_class: music
+                              children_media_class: null
+                              navigateIds:
+                                - {}
+                                - media_content_type: app
+                                  media_content_id: media-source://media_source
+                                - media_content_type: ""
+                                  media_content_id: media-source://media_source/mp3/.
+                              browse_entity_id: media_player.kitchen_tablet
+                        continue_on_error: true
+          - action: notify. # your email thing. I used a gmail.
+            metadata: {}
+            data:
+              message: 🐩 The dog's are low on water 🚰🌊
+              target: >- # email addresses you want it sent to
+              title: 🐩 The dogs are low on water 🚰🌊
+          - action: notify. # phone notification.
+            metadata: {}
+            data:
+              message: 🐩 The dog's are low on water 🚰🌊
+      - conditions:
+          - condition: trigger
+            id:
+              - OK
+        sequence:
+          - action: input_boolean.turn_off
+            metadata: {}
+            target:
+              entity_id: input_boolean.dog_water
+            data: {}
+      - conditions:
+          - condition: trigger
+            id:
+              - timer_done
+          - condition: state
+            entity_id: input_boolean.dog_water
+            state:
+              - "on"
+        sequence:
+          - action: timer.start
+            metadata: {}
+            target:
+              entity_id: timer.dog_water
+            data:
+              duration:
+                hours: 0
+                minutes: 15
+                seconds: 0
+          - choose:
+              - conditions:
+                  - condition: time
+                    after: "06:00:00"
+                    before: "22:00:00"
+                sequence:
+                  - parallel:
+                      - action: media_player.play_media
+                        metadata: {}
+                        target:
+                          entity_id:
+                            - media_player.kitchen_tablet
+                        data:
+                          media:
+                            media_content_id: media-source://media_source/mp3/dog_15_min.mp3
+                            media_content_type: audio/mpeg
+                            metadata:
+                              title: dog_15_min.mp3
+                              thumbnail: null
+                              media_class: music
+                              children_media_class: null
+                              navigateIds:
+                                - {}
+                                - media_content_type: app
+                                  media_content_id: media-source://media_source
+                                - media_content_type: ""
+                                  media_content_id: media-source://media_source/mp3/.
+                              browse_entity_id: media_player.my_bedroom_mini
+                        continue_on_error: true
+                      - action: media_player.play_media
+                        metadata: {}
+                        target:
+                          entity_id:
+                            - media_player.kitchen_display
+                        data:
+                          media:
+                            media_content_id: media-source://media_source/mp3/dog_15_min.mp3
+                            media_content_type: audio/mpeg
+                            metadata:
+                              title: dog_15_min.mp3
+                              thumbnail: null
+                              media_class: music
+                              children_media_class: null
+                              navigateIds:
+                                - {}
+                                - media_content_type: app
+                                  media_content_id: media-source://media_source
+                                - media_content_type: ""
+                                  media_content_id: media-source://media_source/mp3/.
+                              browse_entity_id: media_player.my_bedroom_mini
+                        continue_on_error: true
+                      - action: media_player.play_media
+                        metadata: {}
+                        target:
+                          entity_id:
+                            - media_player.my_bedroom_mini
+                        data:
+                          media:
+                            media_content_id: media-source://media_source/mp3/dog_15_min.mp3
+                            media_content_type: audio/mpeg
+                            metadata:
+                              title: dog_15_min.mp3
+                              thumbnail: null
+                              media_class: music
+                              children_media_class: null
+                              navigateIds:
+                                - {}
+                                - media_content_type: app
+                                  media_content_id: media-source://media_source
+                                - media_content_type: ""
+                                  media_content_id: media-source://media_source/mp3/.
+                              browse_entity_id: media_player.my_bedroom_mini
+                        continue_on_error: true
+                      - action: media_player.play_media
+                        metadata: {}
+                        target:
+                          entity_id:
+                            - media_player.game_room_speaker
+                        data:
+                          media:
+                            media_content_id: media-source://media_source/mp3/dog_15_min.mp3
+                            media_content_type: audio/mpeg
+                            metadata:
+                              title: dog_15_min.mp3
+                              thumbnail: null
+                              media_class: music
+                              children_media_class: null
+                              navigateIds:
+                                - {}
+                                - media_content_type: app
+                                  media_content_id: media-source://media_source
+                                - media_content_type: ""
+                                  media_content_id: media-source://media_source/mp3/.
+                              browse_entity_id: media_player.my_bedroom_mini
+                        continue_on_error: true
+mode: single
